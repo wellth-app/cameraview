@@ -21,7 +21,10 @@ import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.os.Build;
 import android.support.v4.util.SparseArrayCompat;
+import android.util.Log;
 import android.view.SurfaceHolder;
+
+import com.wellthapp.android.camera.OutputConfiguration;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,9 +36,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @SuppressWarnings("deprecation")
 class Camera1 extends CameraViewImpl {
 
+    public static final String TAG = "Camera1";
+
     private static final int INVALID_CAMERA_ID = -1;
 
     private static final SparseArrayCompat<String> FLASH_MODES = new SparseArrayCompat<>();
+    private PreviewCallback previewCallback;
 
     static {
         FLASH_MODES.put(Constants.FLASH_OFF, Camera.Parameters.FLASH_MODE_OFF);
@@ -84,6 +90,28 @@ class Camera1 extends CameraViewImpl {
         });
     }
 
+    Camera1(final PreviewCallback previewCallback, Callback callback, PreviewImpl preview) {
+        super(callback, preview);
+        this.addAutoCapturePreviewCallback(previewCallback);
+        preview.setCallback(new PreviewImpl.Callback() {
+            @Override
+            public void onSurfaceChanged() {
+                if (mCamera != null) {
+                    setUpPreview();
+                    adjustCameraParameters();
+                }
+            }
+        });
+    }
+
+    public final void addAutoCapturePreviewCallback(final PreviewCallback previewCallback) {
+        Log.d(TAG, "Adding ac preview callback...");
+        this.previewCallback = previewCallback;
+        if (this.mCamera != null) {
+            this.mCamera.setPreviewCallback(previewCallback);
+        }
+    }
+
     @Override
     boolean start() {
         chooseCamera();
@@ -92,6 +120,7 @@ class Camera1 extends CameraViewImpl {
             setUpPreview();
         }
         mShowingPreview = true;
+        mCamera.setPreviewCallback(this.previewCallback);
         mCamera.startPreview();
         return true;
     }
@@ -116,6 +145,7 @@ class Camera1 extends CameraViewImpl {
                 }
                 mCamera.setPreviewDisplay(mPreview.getSurfaceHolder());
                 if (needsToStopPreview) {
+                    mCamera.setPreviewCallback(this.previewCallback);
                     mCamera.startPreview();
                 }
             } else {
@@ -244,6 +274,7 @@ class Camera1 extends CameraViewImpl {
                     isPictureCaptureInProgress.set(false);
                     mCallback.onPictureTaken(data);
                     camera.cancelAutoFocus();
+                    camera.setPreviewCallback(previewCallback);
                     camera.startPreview();
                 }
             });
@@ -265,9 +296,21 @@ class Camera1 extends CameraViewImpl {
             }
             mCamera.setDisplayOrientation(calcDisplayOrientation(displayOrientation));
             if (needsToStopPreview) {
+                mCamera.setPreviewCallback(this.previewCallback);
                 mCamera.startPreview();
             }
         }
+    }
+
+    @Override
+    void capture() {
+        this.previewCallback.setReadyForCapture(true);
+        this.mCamera.autoFocus(new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean success, Camera camera) {
+                previewCallback.setCameraIsFocused(success);
+            }
+        });
     }
 
     /**
@@ -307,6 +350,8 @@ class Camera1 extends CameraViewImpl {
         adjustCameraParameters();
         mCamera.setDisplayOrientation(calcDisplayOrientation(mDisplayOrientation));
         mCallback.onCameraOpened();
+
+        mCamera.setPreviewCallback(this.previewCallback);
     }
 
     private AspectRatio chooseAspectRatio() {
@@ -341,6 +386,7 @@ class Camera1 extends CameraViewImpl {
         setFlashInternal(mFlash);
         mCamera.setParameters(mCameraParameters);
         if (mShowingPreview) {
+            mCamera.setPreviewCallback(this.previewCallback);
             mCamera.startPreview();
         }
     }
@@ -374,6 +420,7 @@ class Camera1 extends CameraViewImpl {
 
     private void releaseCamera() {
         if (mCamera != null) {
+            mCamera.setPreviewCallback(null);
             mCamera.release();
             mCamera = null;
             mCallback.onCameraClosed();
