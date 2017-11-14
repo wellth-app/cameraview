@@ -34,6 +34,9 @@ import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
+import android.widget.Toast;
+
+import com.wellthapp.android.camera.OutputConfiguration;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -65,8 +68,7 @@ class Camera2 extends CameraViewImpl {
 
     private final CameraManager mCameraManager;
 
-    private final CameraDevice.StateCallback mCameraDeviceCallback
-            = new CameraDevice.StateCallback() {
+    private final CameraDevice.StateCallback mCameraDeviceCallback = new CameraDevice.StateCallback() {
 
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
@@ -93,11 +95,11 @@ class Camera2 extends CameraViewImpl {
 
     };
 
-    private final CameraCaptureSession.StateCallback mSessionCallback
-            = new CameraCaptureSession.StateCallback() {
+    private final CameraCaptureSession.StateCallback mSessionCallback = new CameraCaptureSession.StateCallback() {
 
         @Override
         public void onConfigured(@NonNull CameraCaptureSession session) {
+            Log.d(TAG, "onConfigured fired!");
             if (mCamera == null) {
                 return;
             }
@@ -146,16 +148,17 @@ class Camera2 extends CameraViewImpl {
 
         @Override
         public void onReady() {
+            Log.d(TAG, "onReady called!");
             captureStillPicture();
         }
 
     };
 
-    private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
-            = new ImageReader.OnImageAvailableListener() {
+    private final ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener() {
 
         @Override
         public void onImageAvailable(ImageReader reader) {
+            Log.d(TAG, "Hi, I'm a frame1!");
             try (Image image = reader.acquireNextImage()) {
                 Image.Plane[] planes = image.getPlanes();
                 if (planes.length > 0) {
@@ -163,6 +166,24 @@ class Camera2 extends CameraViewImpl {
                     byte[] data = new byte[buffer.remaining()];
                     buffer.get(data);
                     mCallback.onPictureTaken(data);
+                }
+            }
+        }
+
+    };
+
+    private final ImageReader.OnImageAvailableListener mOnImageAvailableListener2 = new ImageReader.OnImageAvailableListener() {
+
+        @Override
+        public void onImageAvailable(ImageReader reader) {
+            Log.d(TAG, "Hi, I'm a frame2!");
+            try (Image image = reader.acquireNextImage()) {
+                Image.Plane[] planes = image.getPlanes();
+                if (planes.length > 0) {
+                    ByteBuffer buffer = planes[0].getBuffer();
+                    byte[] data = new byte[buffer.remaining()];
+                    buffer.get(data);
+//                    mCallback.onPictureTaken(data);
                 }
             }
         }
@@ -182,6 +203,8 @@ class Camera2 extends CameraViewImpl {
 
     private ImageReader mImageReader;
 
+    private ImageReader mImageReader2;
+
     private final SizeMap mPreviewSizes = new SizeMap();
 
     private final SizeMap mPictureSizes = new SizeMap();
@@ -196,12 +219,16 @@ class Camera2 extends CameraViewImpl {
 
     private int mDisplayOrientation;
 
+    private Context context;
+
     Camera2(Callback callback, PreviewImpl preview, Context context) {
         super(callback, preview);
+        this.context = context;
         mCameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
         mPreview.setCallback(new PreviewImpl.Callback() {
             @Override
             public void onSurfaceChanged() {
+                Log.d(TAG, "onSurfaceChanged() fired!");
                 startCaptureSession();
             }
         });
@@ -209,11 +236,13 @@ class Camera2 extends CameraViewImpl {
 
     @Override
     boolean start() {
-        if (!chooseCameraIdByFacing()) {
+        boolean something = chooseCameraIdByFacing();
+        if (!something) {
             return false;
         }
         collectCameraInfo();
         prepareImageReader();
+        prepareImageReader2();
         startOpeningCamera();
         return true;
     }
@@ -241,6 +270,7 @@ class Camera2 extends CameraViewImpl {
 
     @Override
     void setFacing(int facing) {
+        Log.d(TAG, "setFacing() called!");
         if (mFacing == facing) {
             return;
         }
@@ -270,6 +300,7 @@ class Camera2 extends CameraViewImpl {
         }
         mAspectRatio = ratio;
         prepareImageReader();
+        prepareImageReader2();
         if (mCaptureSession != null) {
             mCaptureSession.close();
             mCaptureSession = null;
@@ -334,6 +365,7 @@ class Camera2 extends CameraViewImpl {
 
     @Override
     void takePicture() {
+        Log.e(TAG, "TAKEPICTURE called!");
         if (mAutoFocus) {
             lockFocus();
         } else {
@@ -345,6 +377,11 @@ class Camera2 extends CameraViewImpl {
     void setDisplayOrientation(int displayOrientation) {
         mDisplayOrientation = displayOrientation;
         mPreview.setDisplayOrientation(mDisplayOrientation);
+    }
+
+    @Override
+    void capture() {
+
     }
 
     /**
@@ -382,6 +419,7 @@ class Camera2 extends CameraViewImpl {
             mCameraCharacteristics = mCameraManager.getCameraCharacteristics(mCameraId);
             Integer level = mCameraCharacteristics.get(
                     CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
+            Log.d(TAG, "LEVEL = " + level);
             if (level == null ||
                     level == CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY) {
                 return false;
@@ -403,6 +441,11 @@ class Camera2 extends CameraViewImpl {
         } catch (CameraAccessException e) {
             throw new RuntimeException("Failed to get a list of camera devices", e);
         }
+    }
+
+    public final void addAutoCapturePreviewCallback(final PreviewCallback previewCallback) {
+        Log.d(TAG, "C2 addACPreviewCB");
+        // TODO: Implement this stub
     }
 
     /**
@@ -444,6 +487,7 @@ class Camera2 extends CameraViewImpl {
     }
 
     private void prepareImageReader() {
+        Log.d(TAG, "Preparing image reader!");
         if (mImageReader != null) {
             mImageReader.close();
         }
@@ -453,12 +497,23 @@ class Camera2 extends CameraViewImpl {
         mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
     }
 
+    private void prepareImageReader2() {
+        Log.d(TAG, "Preparing image reader 2!");
+        if (mImageReader2 != null) {
+            mImageReader2.close();
+        }
+        Size largest = mPictureSizes.sizes(mAspectRatio).last();
+        mImageReader2 = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.YUV_420_888, /* maxImages */ 2);
+        mImageReader2.setOnImageAvailableListener(mOnImageAvailableListener2, null);
+    }
+
     /**
      * <p>Starts opening a camera device.</p>
      * <p>The result will be processed in {@link #mCameraDeviceCallback}.</p>
      */
     private void startOpeningCamera() {
         try {
+            Log.d(TAG, "starting gd camera");
             mCameraManager.openCamera(mCameraId, mCameraDeviceCallback, null);
         } catch (CameraAccessException e) {
             throw new RuntimeException("Failed to open camera: " + mCameraId, e);
@@ -471,6 +526,7 @@ class Camera2 extends CameraViewImpl {
      * <p>The result will be continuously processed in {@link #mSessionCallback}.</p>
      */
     void startCaptureSession() {
+        Log.d(TAG, "startCaptureSession() fired!");
         if (!isCameraOpened() || !mPreview.isReady() || mImageReader == null) {
             return;
         }
@@ -580,6 +636,7 @@ class Camera2 extends CameraViewImpl {
      * Locks the focus as the first step for a still image capture.
      */
     private void lockFocus() {
+        Log.d(TAG, "LF called!");
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                 CaptureRequest.CONTROL_AF_TRIGGER_START);
         try {
@@ -594,12 +651,11 @@ class Camera2 extends CameraViewImpl {
      * Captures a still picture.
      */
     void captureStillPicture() {
+        Log.d(TAG, "captureStillPicture() fired!");
         try {
-            CaptureRequest.Builder captureRequestBuilder = mCamera.createCaptureRequest(
-                    CameraDevice.TEMPLATE_STILL_CAPTURE);
+            CaptureRequest.Builder captureRequestBuilder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureRequestBuilder.addTarget(mImageReader.getSurface());
-            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                    mPreviewRequestBuilder.get(CaptureRequest.CONTROL_AF_MODE));
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, mPreviewRequestBuilder.get(CaptureRequest.CONTROL_AF_MODE));
             switch (mFlash) {
                 case Constants.FLASH_OFF:
                     captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
@@ -706,6 +762,7 @@ class Camera2 extends CameraViewImpl {
         }
 
         private void process(@NonNull CaptureResult result) {
+            Log.d(TAG, "ADSFASDFASDF");
             switch (mState) {
                 case STATE_LOCKING: {
                     Integer af = result.get(CaptureResult.CONTROL_AF_STATE);
