@@ -13,6 +13,9 @@
 // limitations under the License.
 
 apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+
+group = 'com.github.wellth-app'
 
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -41,6 +44,9 @@ android {
 dependencies {
     compile "com.android.support:support-annotations:$supportLibraryVersion"
     compile "com.android.support:support-v4:$supportLibraryVersion"
+
+    // React Native
+    compile "com.facebook.react:react-native:0.19.1"
 
     // Tests
     testCompile 'junit:junit:4.12'
