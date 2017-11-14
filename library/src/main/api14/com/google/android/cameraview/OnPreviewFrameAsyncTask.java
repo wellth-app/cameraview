@@ -176,11 +176,11 @@ public class OnPreviewFrameAsyncTask extends AsyncTask<Void, Void, Void> {
             final OutputConfiguration.Directory directory = configuration.getDirectory();
 
             switch(directory) {
-                case Cache:
+                case CACHE:
                     return new File(this.contxt.getCacheDir(), fileName);
-                case Private:
+                case PRIVATE:
                     return new File(this.contxt.getFilesDir(), fileName);
-                case Public:
+                case PUBLIC:
                     return new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), fileName);
             }
         }
