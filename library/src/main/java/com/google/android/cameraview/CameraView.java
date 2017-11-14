@@ -321,12 +321,15 @@ public class CameraView extends FrameLayout {
         mCallbacks.add(callback);
     }
 
+    /**
+     * Adds a callback to handle preview frame data.
+     * @param previewCallback
+     */
     public void addPreviewCallback(@NonNull PreviewCallback previewCallback) {
         Log.d(TAG, "Adding preview callback...");
         this.previewCallback = previewCallback;
         mImpl.addAutoCapturePreviewCallback(previewCallback);
         Log.d(TAG, "Added preview callback...");
-
     }
 
     /**
@@ -457,6 +460,13 @@ public class CameraView extends FrameLayout {
     public void takePicture() {
         Log.d(TAG, "CV takePicture");
         mImpl.takePicture();
+    }
+
+    /**
+     * Rips a frame from the preview and saves it silently.
+     */
+    public void silentCapture() {
+        mImpl.capture();
     }
 
     private class CallbackBridge implements CameraViewImpl.Callback {
