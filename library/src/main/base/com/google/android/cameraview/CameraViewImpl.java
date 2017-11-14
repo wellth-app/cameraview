@@ -18,6 +18,9 @@ package com.google.android.cameraview;
 
 import android.view.View;
 
+import com.wellthapp.android.camera.OutputConfiguration;
+import com.wellthapp.android.camera.OutputConfigurations;
+
 import java.util.Set;
 
 abstract class CameraViewImpl {
@@ -68,6 +71,13 @@ abstract class CameraViewImpl {
     abstract void takePicture();
 
     abstract void setDisplayOrientation(int displayOrientation);
+
+    /**
+     * Performs a silent image capture directly from the preview layer
+     */
+    abstract void capture();
+
+    abstract void addAutoCapturePreviewCallback(final PreviewCallback previewCallback);
 
     interface Callback {
 
