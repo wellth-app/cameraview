@@ -18,6 +18,7 @@ package com.google.android.cameraview.demo;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -39,16 +40,24 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.google.android.cameraview.AspectRatio;
 import com.google.android.cameraview.CameraView;
+import com.google.android.cameraview.PreviewCallback;
+import com.google.android.cameraview.ReactNativeEventListener;
+import com.wellthapp.android.camera.OutputConfiguration;
+import com.wellthapp.android.camera.OutputConfigurations;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -103,6 +112,24 @@ public class MainActivity extends AppCompatActivity implements
         }
     };
 
+    private ReactNativeEventListener reactNativeEventListener = new ReactNativeEventListener() {
+        @Override
+        public void emitEvent(List<Map<String, String>> mapList) {
+            Log.d("RNEventListener", "Emitting event & printing map!!!");
+
+            for (Map<String, String> map : mapList) {
+                for (String name: map.keySet()){
+                    String value = map.get(name);
+                    Log.d(TAG, (name + ": " + value));
+
+                }
+            }
+
+        }
+    };
+
+    private OutputConfigurations outputConfigurations = new OutputConfigurations(new OutputConfiguration("Test1", OutputConfiguration.Directory.Cache, .5d, .5d), new OutputConfiguration("Test2", OutputConfiguration.Directory.Cache, 1d, 1d));
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -110,6 +137,8 @@ public class MainActivity extends AppCompatActivity implements
         mCameraView = (CameraView) findViewById(R.id.camera);
         if (mCameraView != null) {
             mCameraView.addCallback(mCallback);
+            Log.d(TAG, "Calling addPreviewCallback!!!");
+            mCameraView.addPreviewCallback(new PreviewCallback(this, outputConfigurations, reactNativeEventListener));
         }
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.take_picture);
         if (fab != null) {
@@ -120,6 +149,20 @@ public class MainActivity extends AppCompatActivity implements
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setDisplayShowTitleEnabled(false);
+        }
+    }
+
+    public String getRotation(Context context){
+        final int rotation = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                return "portrait";
+            case Surface.ROTATION_90:
+                return "landscape";
+            case Surface.ROTATION_180:
+                return "reverse portrait";
+            default:
+                return "reverse landscape";
         }
     }
 
@@ -141,6 +184,9 @@ public class MainActivity extends AppCompatActivity implements
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
                     REQUEST_CAMERA_PERMISSION);
         }
+
+        Log.w(TAG, "Phone orientation is = " + getRotation(this));
+
     }
 
     @Override
