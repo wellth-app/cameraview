@@ -128,7 +128,7 @@ public class MainActivity extends AppCompatActivity implements
         }
     };
 
-    private OutputConfigurations outputConfigurations = new OutputConfigurations(new OutputConfiguration("Test1", OutputConfiguration.Directory.Cache, .5d, .5d), new OutputConfiguration("Test2", OutputConfiguration.Directory.Cache, 1d, 1d));
+    private OutputConfigurations outputConfigurations = new OutputConfigurations(new OutputConfiguration("Test1", OutputConfiguration.Directory.CACHE, .5d, .5d), new OutputConfiguration("Test2", OutputConfiguration.Directory.CACHE, 1d, 1d));
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
