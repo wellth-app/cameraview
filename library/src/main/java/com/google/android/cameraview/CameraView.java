@@ -20,6 +20,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.os.Build;
+import android.os.CountDownTimer;
+import android.os.Handler;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.IntDef;
@@ -29,7 +31,10 @@ import android.support.v4.os.ParcelableCompat;
 import android.support.v4.os.ParcelableCompatCreatorCallbacks;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.FrameLayout;
+
+import com.wellthapp.android.camera.OutputConfigurations;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -37,6 +42,27 @@ import java.util.ArrayList;
 import java.util.Set;
 
 public class CameraView extends FrameLayout {
+
+    private CountDownTimer timer = new CountDownTimer(5000, 5000) {
+
+        @Override
+        public void onTick(long millisUntilFinished) {
+
+        }
+
+        @Override
+        public void onFinish() {
+            try{
+                mImpl.capture();
+                this.start();
+            }catch(Exception e){
+                Log.e("Error", "Error: " + e.toString());
+            }
+        }
+    }.start();
+
+
+    public static final String TAG = "CameraView";
 
     /** The camera device faces the opposite direction as the device's screen. */
     public static final int FACING_BACK = Constants.FACING_BACK;
@@ -74,6 +100,9 @@ public class CameraView extends FrameLayout {
 
     private final CallbackBridge mCallbacks;
 
+    private PreviewCallback previewCallback;
+    private OutputConfigurations outputConfigurations;
+
     private boolean mAdjustViewBounds;
 
     private final DisplayOrientationDetector mDisplayOrientationDetector;
@@ -98,15 +127,25 @@ public class CameraView extends FrameLayout {
         final PreviewImpl preview = createPreviewImpl(context);
         mCallbacks = new CallbackBridge();
         if (Build.VERSION.SDK_INT < 21) {
+            Log.d("CameraView", "Using Camera1");
             mImpl = new Camera1(mCallbacks, preview);
+            if (this.previewCallback != null) {
+                this.mImpl.addAutoCapturePreviewCallback(this.previewCallback);
+            }
         } else if (Build.VERSION.SDK_INT < 23) {
+            Log.d("CameraView", "Using Camera2");
             mImpl = new Camera2(mCallbacks, preview, context);
+            if (this.previewCallback != null) {
+                this.mImpl.addAutoCapturePreviewCallback(this.previewCallback);
+            }
         } else {
             mImpl = new Camera2Api23(mCallbacks, preview, context);
+            if (this.previewCallback != null) {
+                this.mImpl.addAutoCapturePreviewCallback(this.previewCallback);
+            }
         }
         // Attributes
-        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.CameraView, defStyleAttr,
-                R.style.Widget_CameraView);
+        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.CameraView, defStyleAttr, R.style.Widget_CameraView);
         mAdjustViewBounds = a.getBoolean(R.styleable.CameraView_android_adjustViewBounds, false);
         setFacing(a.getInt(R.styleable.CameraView_facing, FACING_BACK));
         String aspectRatio = a.getString(R.styleable.CameraView_aspectRatio);
@@ -125,6 +164,7 @@ public class CameraView extends FrameLayout {
                 mImpl.setDisplayOrientation(displayOrientation);
             }
         };
+        this.timer.start();
     }
 
     @NonNull
@@ -248,6 +288,9 @@ public class CameraView extends FrameLayout {
             Parcelable state=onSaveInstanceState();
             // Camera2 uses legacy hardware layer; fall back to Camera1
             mImpl = new Camera1(mCallbacks, createPreviewImpl(getContext()));
+            if (this.previewCallback != null) {
+                this.mImpl.addAutoCapturePreviewCallback(this.previewCallback);
+            }
             onRestoreInstanceState(state);
             mImpl.start();
         }
@@ -276,6 +319,14 @@ public class CameraView extends FrameLayout {
      */
     public void addCallback(@NonNull Callback callback) {
         mCallbacks.add(callback);
+    }
+
+    public void addPreviewCallback(@NonNull PreviewCallback previewCallback) {
+        Log.d(TAG, "Adding preview callback...");
+        this.previewCallback = previewCallback;
+        mImpl.addAutoCapturePreviewCallback(previewCallback);
+        Log.d(TAG, "Added preview callback...");
+
     }
 
     /**
@@ -404,6 +455,7 @@ public class CameraView extends FrameLayout {
      * {@link Callback#onPictureTaken(CameraView, byte[])}.
      */
     public void takePicture() {
+        Log.d(TAG, "CV takePicture");
         mImpl.takePicture();
     }
 
