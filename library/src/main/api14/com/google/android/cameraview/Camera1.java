@@ -24,8 +24,6 @@ import android.support.v4.util.SparseArrayCompat;
 import android.util.Log;
 import android.view.SurfaceHolder;
 
-import com.wellthapp.android.camera.OutputConfiguration;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -304,13 +302,17 @@ class Camera1 extends CameraViewImpl {
 
     @Override
     void capture() {
-        this.previewCallback.setReadyForCapture(true);
-        this.mCamera.autoFocus(new Camera.AutoFocusCallback() {
-            @Override
-            public void onAutoFocus(boolean success, Camera camera) {
-                previewCallback.setCameraIsFocused(success);
-            }
-        });
+        if (this.previewCallback != null) {
+            this.previewCallback.setReadyForCapture(true);
+            this.mCamera.autoFocus(new Camera.AutoFocusCallback() {
+                @Override
+                public void onAutoFocus(boolean success, Camera camera) {
+                    previewCallback.setCameraIsFocused(success);
+                }
+            });
+        } else {
+            Log.w(TAG, "Preview callback was null which means this invocation is a no-op!");
+        }
     }
 
     /**
