@@ -45,9 +45,6 @@ dependencies {
     compile "com.android.support:support-annotations:$supportLibraryVersion"
     compile "com.android.support:support-v4:$supportLibraryVersion"
 
-    // React Native
-    compile "com.facebook.react:react-native:0.19.1"
-
     // Tests
     testCompile 'junit:junit:4.12'
     androidTestCompile('com.android.support.test:runner:0.5') {
