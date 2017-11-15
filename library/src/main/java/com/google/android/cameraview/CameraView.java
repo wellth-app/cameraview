@@ -465,7 +465,7 @@ public class CameraView extends FrameLayout {
     /**
      * Rips a frame from the preview and saves it silently.
      */
-    public void silentCapture() {
+    public void capture() {
         mImpl.capture();
     }
 
