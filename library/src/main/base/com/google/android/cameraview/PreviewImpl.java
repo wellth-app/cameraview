@@ -16,6 +16,7 @@
 
 package com.google.android.cameraview;
 
+import android.graphics.Bitmap;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.View;
@@ -50,6 +51,8 @@ abstract class PreviewImpl {
 
     abstract boolean isReady();
 
+    abstract Bitmap getBitmap();
+
     protected void dispatchSurfaceChanged() {
         mCallback.onSurfaceChanged();
     }
@@ -77,5 +80,6 @@ abstract class PreviewImpl {
     int getHeight() {
         return mHeight;
     }
+
 
 }
