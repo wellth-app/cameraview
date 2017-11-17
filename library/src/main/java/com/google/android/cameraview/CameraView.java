@@ -43,25 +43,6 @@ import java.util.Set;
 
 public class CameraView extends FrameLayout {
 
-    private CountDownTimer timer = new CountDownTimer(5000, 5000) {
-
-        @Override
-        public void onTick(long millisUntilFinished) {
-
-        }
-
-        @Override
-        public void onFinish() {
-            try{
-                mImpl.capture();
-                this.start();
-            }catch(Exception e){
-                Log.e("Error", "Error: " + e.toString());
-            }
-        }
-    }.start();
-
-
     public static final String TAG = "CameraView";
 
     /** The camera device faces the opposite direction as the device's screen. */
@@ -164,7 +145,6 @@ public class CameraView extends FrameLayout {
                 mImpl.setDisplayOrientation(displayOrientation);
             }
         };
-        this.timer.start();
     }
 
     @NonNull
