@@ -8,7 +8,6 @@ import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
-import android.hardware.Camera;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.AsyncTask;
@@ -21,12 +20,10 @@ import android.util.Log;
 import com.wellthapp.android.camera.OutputConfiguration;
 import com.wellthapp.android.camera.OutputConfigurations;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,28 +34,28 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
 
     public static final String TAG = "OnPreviewFrameAsyncTask";
 
-    public static class ImageAvailableRequest {
+    public static class BitmapProcessRequest {
 
-        private ImageReader imageReader;
-        private final OutputConfigurations OutputConfigurations;
+        private Bitmap bitmap;
+        private final OutputConfigurations outputConfigurations;
 
-        public ImageAvailableRequest(final ImageReader imageReader, final OutputConfigurations OutputConfigurations) {
-            this.imageReader = imageReader;
-            this.OutputConfigurations = OutputConfigurations;
-            Log.d(TAG, "ImageAvailableRequest() --> Initialized an image available request!");
+        public BitmapProcessRequest(final Bitmap bitmap, final OutputConfigurations OutputConfigurations) {
+            this.bitmap = bitmap;
+            this.outputConfigurations = OutputConfigurations;
+            Log.d(TAG, "BitmapProcessRequest() --> Initialized an bitmap process request!");
         }
 
-        public ImageReader getImageReader() {
-            return this.imageReader;
+        public Bitmap getBitmap() {
+            return this.bitmap;
         }
 
         public OutputConfigurations getOutputConfigurations() {
-            return this.OutputConfigurations;
+            return this.outputConfigurations;
         }
 
     }
 
-    private final LinkedBlockingQueue<ImageAvailableRequest> queue = new LinkedBlockingQueue<>();
+    private final LinkedBlockingQueue<BitmapProcessRequest> queue = new LinkedBlockingQueue<>();
     private final Handler handler;
     private final ReactNativeEventListener reactNativeEventListener;
     private final Context contxt;
@@ -75,14 +72,14 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
 
     /**
      * Queues up a capture request for processing.
-     * @param ImageAvailableRequest
+     * @param bitmapProcessRequest
      */
-    public final void queue(final ImageAvailableRequest ImageAvailableRequest) {
+    public final void queue(final BitmapProcessRequest bitmapProcessRequest) {
         try {
             if (this.queue.size() == 0) {
-                queue.put(ImageAvailableRequest);
+                queue.put(bitmapProcessRequest);
             } else {
-                Log.d(TAG, "Didn't put the capture request in the queue!");
+                Log.w(TAG, "Didn't put the capture request in the queue!");
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -96,48 +93,14 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
         while(this.proceed) {
 
             // Unpack the picture bytes
-            final ImageAvailableRequest imageAvailableRequest;
+            final BitmapProcessRequest bitmapProcessRequest;
 
             try {
                 // Unpack the byte array wrapper
-                imageAvailableRequest = queue.take();
-                final ImageReader reader = imageAvailableRequest.getImageReader();
-                final OutputConfigurations outputConfigurations = imageAvailableRequest.getOutputConfigurations();
-
-                try {
-                    Image image = reader.acquireNextImage();
-                    Image.Plane[] planes = image.getPlanes();
-                    if (planes.length > 0) {
-                        ByteBuffer buffer = planes[0].getBuffer();
-                        byte[] data = new byte[buffer.remaining()];
-                        buffer.get(data);
-                        this.emitEvent(saveImageAndReturnEvent(data, outputConfigurations));
-                    }
-                } catch (Exception e) {
-
-                }
-
-
-
-
-
-
-
-
-
-
-
-//                final byte[] bytes = ImageAvailableRequest.getBytes();
-//                final Camera camera = ImageAvailableRequest.getCamera();
-//                final OutputConfigurations configurations = ImageAvailableRequest.getOutputConfigurations();
-//
-//                // Determine the camera settings
-//                final Camera.Parameters parameters = camera.getParameters();
-//                final int previewWidth = parameters.getPreviewSize().width;
-//                final int previewHeight = parameters.getPreviewSize().height;
-//
-//                // Do the actual save
-//                this.emitEvent(this.saveImageAndReturnEvent(bytes, previewWidth, previewHeight, configurations));
+                bitmapProcessRequest = queue.take();
+                final Bitmap bitmap = bitmapProcessRequest.getBitmap();
+                final OutputConfigurations outputConfigurations = bitmapProcessRequest.getOutputConfigurations();
+                this.emitEvent(this.saveImageAndReturnEvent(bitmap, outputConfigurations));
 
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -162,11 +125,11 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
 
     /**
      *
-     * @param bytes
+     * @param bitmap
      * @param configurations
      * @return
      */
-    private List<Map<String, String>> saveImageAndReturnEvent(final byte[] bytes, final OutputConfigurations configurations) {
+    private List<Map<String, String>> saveImageAndReturnEvent(final Bitmap bitmap, final OutputConfigurations configurations) {
         final List<Map<String, String>> outputList = new ArrayList<>();
 
         // Build output
@@ -176,7 +139,7 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
                 final Map<String, String> outputMap = new HashMap<>();
                 final OutputConfiguration configuration = configurations.getConfiguration(i);
                 if (configuration != null) {
-                    final File savedFile = this.saveImageUsingConfiguration(bytes, configuration);
+                    final File savedFile = this.saveImageUsingConfiguration(bitmap, configuration);
                     outputMap.put("name", configuration.getName());
                     outputMap.put("file", savedFile.getAbsolutePath());
                     outputList.add(outputMap);
@@ -185,14 +148,6 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
         }
 
         return outputList;
-    }
-
-    private ByteArrayOutputStream toByteArrayOutputStream(final byte[] data, final int width, final int height, final int quality) {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        YuvImage yuvImage = new YuvImage(data, ImageFormat.NV21, width, height, null);
-        Rect rect = new Rect(0, 0, width, height);
-        yuvImage.compressToJpeg(rect, quality, out);
-        return out;
     }
 
     public final File getFileUsingConfiguration(OutputConfiguration configuration) {
@@ -217,61 +172,52 @@ public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
             Matrix matrix = new Matrix();
             matrix.postRotate(degrees);
             return Bitmap.createBitmap(bitmap , 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+        } else {
+            return bitmap;
         }
-        return null;
     }
 
     /**
      * Saves an image
-     * @param data
+     * @param bitmapImage
      * @param configuration
      * @return
      */
+    public File saveImageUsingConfiguration(final Bitmap bitmapImage, final OutputConfiguration configuration) {
+        if (bitmapImage != null && configuration != null) {
 
-//    File file = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-//                            "picture.jpg");
-//                    OutputStream os = null;
-//                    try {
-//                        os = new FileOutputStream(file);
-//                        os.write(data);
-//                        os.close();
-//                    } catch (IOException e) {
-//                        Log.w(TAG, "Cannot write to " + file, e);
-//                    } finally {
-//                        if (os != null) {
-//                            try {
-//                                os.close();
-//                            } catch (IOException e) {
-//                                // Ignore
-//                            }
-//                        }
+            final int height = bitmapImage.getHeight();
+            final int width = bitmapImage.getWidth();
 
-    public File saveImageUsingConfiguration(final byte[] data, final OutputConfiguration configuration) {
-        if (configuration != null) {
-
-//            final int adjustedHeight = (int) (height * configuration.getSize());
-//            final int adjustedWidth = (int) (width * configuration.getSize());
+            final int adjustedHeight = (int) (height * configuration.getSize());
+            final int adjustedWidth = (int) (width * configuration.getSize());
             final double adjustedQuality = configuration.getQuality() * 100d;
 
             // Get the image byte array output stream
-//            final ByteArrayOutputStream byteArrayOutputStream = toByteArrayOutputStream(data, width, height, (int)adjustedQuality);
             final File file = getFileUsingConfiguration(configuration);
             final OutputStream fileOutputStream;
             try {
                 fileOutputStream = new FileOutputStream(file);
-                final byte[] imageBytes = data;
-                final Bitmap bitmapImage = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-                final Bitmap rotatedBitmap = fixOrientation(bitmapImage, 90);
+                if (width == adjustedWidth && height == adjustedHeight) {
+                    // In this case, the image isn't scaled.  Save it as-is.
+                    final Bitmap rotatedBitmap = fixOrientation(bitmapImage, 90);
+                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, (int)adjustedQuality, fileOutputStream);
+                    fileOutputStream.flush();
+                    fileOutputStream.close();
+                    bitmapImage.recycle();
+                    rotatedBitmap.recycle();
+                } else {
+                    // In this case, the image is scaled and we need to do some manipulation.
+                    final Bitmap resizedBitmapImage = Bitmap.createScaledBitmap(bitmapImage, adjustedWidth, adjustedHeight, true);
+                    final Bitmap rotatedBitmap = fixOrientation(resizedBitmapImage, 90);
 
-                rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, (int)adjustedQuality, fileOutputStream);
-//                    byteArrayOutputStream.writeTo(fileOutputStream);
-                fileOutputStream.flush();
-                fileOutputStream.close();
-//                byteArrayOutputStream.flush();
-//                byteArrayOutputStream.close();
-                bitmapImage.recycle();
-                rotatedBitmap.recycle();
-
+                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, (int)adjustedQuality, fileOutputStream);
+                    fileOutputStream.flush();
+                    fileOutputStream.close();
+                    bitmapImage.recycle();
+                    resizedBitmapImage.recycle();
+                    rotatedBitmap.recycle();
+                }
             } catch (IOException exception) {
                 exception.printStackTrace();
             }
