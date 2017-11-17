@@ -18,6 +18,7 @@ package com.google.android.cameraview;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -35,14 +36,21 @@ import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 
+import com.wellthapp.android.camera.OutputConfiguration;
+import com.wellthapp.android.camera.OutputConfigurations;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
 @SuppressWarnings("MissingPermission")
 @TargetApi(21)
 class Camera2 extends CameraViewImpl {
+
+    private final OnPreviewFrameAsyncTask2 asyncTask;
 
     private static final String TAG = "Camera2";
 
@@ -92,7 +100,6 @@ class Camera2 extends CameraViewImpl {
 
         @Override
         public void onConfigured(@NonNull CameraCaptureSession session) {
-            Log.d(TAG, "onConfigured fired!");
             if (mCamera == null) {
                 return;
             }
@@ -137,7 +144,6 @@ class Camera2 extends CameraViewImpl {
 
         @Override
         public void onReady() {
-            Log.d(TAG, "onReady called!");
             captureStillPicture();
         }
     };
@@ -145,23 +151,15 @@ class Camera2 extends CameraViewImpl {
     private final ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            Log.d(TAG, "Hi, I'm a frame1!");
-//            try (Image image = reader.acquireNextImage()) {
-//                Image.Plane[] planes = image.getPlanes();
-//                if (planes.length > 0) {
-//                    ByteBuffer buffer = planes[0].getBuffer();
-//                    byte[] data = new byte[buffer.remaining()];
-//                    buffer.get(data);
-//                    mCallback.onPictureTaken(data);
-//                }
-//            }
-        }
-    };
-
-    private final ImageReader.OnImageAvailableListener mOnImageAvailableListener2 = new ImageReader.OnImageAvailableListener() {
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-            Log.d(TAG, "Hi, I'm a frame2!");
+            try (Image image = reader.acquireNextImage()) {
+                Image.Plane[] planes = image.getPlanes();
+                if (planes.length > 0) {
+                    ByteBuffer buffer = planes[0].getBuffer();
+                    byte[] data = new byte[buffer.remaining()];
+                    buffer.get(data);
+                    mCallback.onPictureTaken(data);
+                }
+            }
         }
     };
 
@@ -206,6 +204,20 @@ class Camera2 extends CameraViewImpl {
                 startCaptureSession();
             }
         });
+        this.asyncTask = new OnPreviewFrameAsyncTask2(context,
+                new ReactNativeEventListener() {
+                    @Override
+                    public void emitEvent(List<Map<String, String>> mapList) {
+                        for (final Map<String, String> map: mapList) {
+                            for (Map.Entry<String, String> entry : map.entrySet()) {
+                                String key = entry.getKey();
+                                String value = entry.getValue();
+                                Log.d(TAG, "Event key = " + key + ", value = " + value);
+                            }
+                        }
+                    }
+                });
+        this.asyncTask.start();
     }
 
     @Override
@@ -294,8 +306,7 @@ class Camera2 extends CameraViewImpl {
             updateAutoFocus();
             if (mCaptureSession != null) {
                 try {
-                    mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(),
-                            mPictureCaptureCallback, null);
+                    mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), mPictureCaptureCallback, null);
                 } catch (CameraAccessException e) {
                     mAutoFocus = !mAutoFocus; // Revert
                 }
@@ -319,8 +330,7 @@ class Camera2 extends CameraViewImpl {
             updateFlash();
             if (mCaptureSession != null) {
                 try {
-                    mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(),
-                            mPictureCaptureCallback, null);
+                    mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), mPictureCaptureCallback, null);
                 } catch (CameraAccessException e) {
                     mFlash = saved; // Revert
                 }
@@ -350,6 +360,14 @@ class Camera2 extends CameraViewImpl {
 
     @Override
     void capture() {
+        if (mPreview != null) {
+            final Bitmap bitmap = mPreview.getBitmap();
+            if (!asyncTask.isRunning()) {
+                asyncTask.start();
+            }
+            asyncTask.queue(new OnPreviewFrameAsyncTask2.BitmapProcessRequest(bitmap, new OutputConfigurations(new OutputConfiguration("yolo", OutputConfiguration.Directory.CACHE, 1d, 1d))));
+
+        }
 
     }
 
@@ -457,13 +475,6 @@ class Camera2 extends CameraViewImpl {
         Size largest = mPictureSizes.sizes(mAspectRatio).last();
         mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, /* maxImages */ 2);
         mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
-
-
-        if (mImageReader2 != null) {
-            mImageReader2.close();
-        }
-        mImageReader2 = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, /* maxImages */ 2);
-        mImageReader2.setOnImageAvailableListener(mOnImageAvailableListener2, null);
     }
 
     /**
@@ -484,7 +495,6 @@ class Camera2 extends CameraViewImpl {
      * <p>The result will be continuously processed in {@link #mCaptureSessionStateCallback}.</p>
      */
     void startCaptureSession() {
-        Log.d(TAG, "startCaptureSession() fired!");
         if (!isCameraOpened() || !mPreview.isReady() || mImageReader == null) {
             return;
         }
@@ -495,7 +505,6 @@ class Camera2 extends CameraViewImpl {
         try {
             mPreviewRequestBuilder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             mPreviewRequestBuilder.addTarget(previewSurface);
-//            mPreviewRequestBuilder.addTarget(imageReaderSurface);
             mCamera.createCaptureSession(Arrays.asList(previewSurface, imageReaderSurface), mCaptureSessionStateCallback, null);
         } catch (CameraAccessException e) {
             throw new RuntimeException("Failed to start camera session");
@@ -590,7 +599,6 @@ class Camera2 extends CameraViewImpl {
      * Locks the focus as the first step for a still image capture.
      */
     private void lockFocus() {
-        Log.d(TAG, "LF called!");
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
         try {
             mPictureCaptureCallback.setState(PictureCaptureCallback.STATE_LOCKING);
@@ -604,7 +612,6 @@ class Camera2 extends CameraViewImpl {
      * Captures a still picture.
      */
     void captureStillPicture() {
-        Log.d(TAG, "captureStillPicture() fired!");
         try {
             CaptureRequest.Builder captureRequestBuilder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureRequestBuilder.addTarget(mImageReader.getSurface());
