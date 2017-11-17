@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class OnImageAvailableAsyncTask2 extends AsyncTask<Void, Void, Void> {
+public class OnPreviewFrameAsyncTask2 extends AsyncTask<Void, Void, Void> {
 
     public static final String TAG = "OnPreviewFrameAsyncTask";
 
@@ -67,7 +67,7 @@ public class OnImageAvailableAsyncTask2 extends AsyncTask<Void, Void, Void> {
     private volatile boolean isRunning = false;
     private volatile boolean proceed = true;
 
-    public OnImageAvailableAsyncTask2(final Context context, final ReactNativeEventListener reactNativeEventListener) {
+    public OnPreviewFrameAsyncTask2(final Context context, final ReactNativeEventListener reactNativeEventListener) {
         this.contxt = context;
         this.handler = new Handler(Looper.getMainLooper());
         this.reactNativeEventListener = reactNativeEventListener;
