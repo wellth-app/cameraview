@@ -48,4 +48,13 @@
         app:srcCompat="@drawable/ic_camera"
         app:useCompatPadding="true"/>
 
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/take_picture2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        app:srcCompat="@drawable/ic_camera"
+        app:useCompatPadding="true"/>
+
 </RelativeLayout>
