@@ -13,9 +13,6 @@
 // limitations under the License.
 
 apply plugin: 'com.android.library'
-apply plugin: 'com.github.dcendents.android-maven'
-
-group = 'com.github.wellth-app'
 
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
