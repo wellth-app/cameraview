@@ -158,6 +158,13 @@ class Camera2 extends CameraViewImpl {
         }
     };
 
+    private final ImageReader.OnImageAvailableListener mOnImageAvailableListener2 = new ImageReader.OnImageAvailableListener() {
+        @Override
+        public void onImageAvailable(ImageReader reader) {
+            Log.d(TAG, "Hi, I'm a frame2!");
+        }
+    };
+
     private String mCameraId;
 
     private CameraCharacteristics mCameraCharacteristics;
@@ -450,6 +457,13 @@ class Camera2 extends CameraViewImpl {
         Size largest = mPictureSizes.sizes(mAspectRatio).last();
         mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, /* maxImages */ 2);
         mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
+
+
+        if (mImageReader2 != null) {
+            mImageReader2.close();
+        }
+        mImageReader2 = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, /* maxImages */ 2);
+        mImageReader2.setOnImageAvailableListener(mOnImageAvailableListener2, null);
     }
 
     /**
@@ -476,11 +490,13 @@ class Camera2 extends CameraViewImpl {
         }
         Size previewSize = chooseOptimalSize();
         mPreview.setBufferSize(previewSize.getWidth(), previewSize.getHeight());
-        Surface surface = mPreview.getSurface();
+        Surface previewSurface = mPreview.getSurface();
+        Surface imageReaderSurface = mImageReader.getSurface();
         try {
             mPreviewRequestBuilder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            mPreviewRequestBuilder.addTarget(surface);
-            mCamera.createCaptureSession(Arrays.asList(surface, mImageReader.getSurface()), mCaptureSessionStateCallback, null);
+            mPreviewRequestBuilder.addTarget(previewSurface);
+//            mPreviewRequestBuilder.addTarget(imageReaderSurface);
+            mCamera.createCaptureSession(Arrays.asList(previewSurface, imageReaderSurface), mCaptureSessionStateCallback, null);
         } catch (CameraAccessException e) {
             throw new RuntimeException("Failed to start camera session");
         }
