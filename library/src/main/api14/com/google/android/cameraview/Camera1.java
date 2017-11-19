@@ -77,6 +77,7 @@ class Camera1 extends CameraViewImpl {
 
     Camera1(Callback callback, PreviewImpl preview) {
         super(callback, preview);
+        Log.d(TAG, "Camera1 PreviewImpl H & W = " + preview.getHeight() + " & " + preview.getWidth());
         preview.setCallback(new PreviewImpl.Callback() {
             @Override
             public void onSurfaceChanged() {
