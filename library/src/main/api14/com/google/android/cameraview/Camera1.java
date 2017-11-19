@@ -149,6 +149,7 @@ class Camera1 extends CameraViewImpl {
             } else {
                 mCamera.setPreviewTexture((SurfaceTexture) mPreview.getSurfaceTexture());
             }
+            Log.d(TAG, "PREVIEW H & W = " + mPreview.getHeight() + " & " + mPreview.getWidth());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
