@@ -106,6 +106,7 @@ public class CameraView extends FrameLayout {
         }
         // Internal setup
         final PreviewImpl preview = createPreviewImpl(context);
+        preview.setSize(150, 150);
         mCallbacks = new CallbackBridge();
 //        if (Build.VERSION.SDK_INT < 21) {
         if (Build.VERSION.SDK_INT < 25) {
